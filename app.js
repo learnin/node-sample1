@@ -3,50 +3,30 @@
  * Module dependencies.
  */
 
-var express = require('express');
-
-var app = module.exports = express.createServer();
-
-// Configuration
-
-app.configure(function(){
-  app.set('views', __dirname + '/views');
-  app.set('view engine', 'ejs');
-  app.use(express.bodyParser());
-  app.use(express.methodOverride());
-  app.use(app.router);
-  app.use(express.static(__dirname + '/public'));
-});
-
-app.configure('development', function(){
-  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
-});
-
-app.configure('production', function(){
-  app.use(express.errorHandler());
-});
-
-// Routes
-var fs = require('fs'),
-  path = require('path');
+var express = require('express'),
+  path = require('path'),
+  app = exports = express.createServer();
 
 var setupRouting = function(routesDir) {
-  var files = fs.readdirSync(routesDir);
+  var fs = require('fs'),
+    files = fs.readdirSync(routesDir);
   files.forEach(function(e) {
     e = routesDir + '/' + e;
     var stats = fs.statSync(e);
     if (stats.isDirectory()) {
       setupRouting(e);
     } else {
-      var urlPath = '/';
+      var urlPath = '/',
+        handler,
+        f;
       if (path.basename(e, '.js') == 'index') {
         urlPath += path.dirname(path.relative(routesDir, e));
       } else {
         urlPath += path.relative(routesDir, e).replace('.js', '');
       }
       urlPath = path.normalize(urlPath);
-      var handler = require(e);
-      for (var f in handler) {
+      handler = require(e);
+      for (f in handler) {
         switch(f) {
           case 'index':
             app.get(urlPath, handler[f]);
@@ -67,6 +47,26 @@ var setupRouting = function(routesDir) {
     }
   });
 }
+
+// Configuration
+app.configure(function(){
+  app.set('views', __dirname + '/views');
+  app.set('view engine', 'ejs');
+  app.use(express.bodyParser());
+  app.use(express.methodOverride());
+  app.use(app.router);
+  app.use(express.static(__dirname + '/public'));
+});
+
+app.configure('development', function(){
+  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
+});
+
+app.configure('production', function(){
+  app.use(express.errorHandler());
+});
+
+// Routes
 setupRouting(path.resolve(__dirname + '/routes'));
 
 app.listen(3000);
